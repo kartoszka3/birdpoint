@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=birdpoint_db
+      - POSTGRES_USER=bird_admin
+      - POSTGRES_PASSWORD=super_secret_password
+    ports:
+      - "5432:5432"
+
+  backend:
+    build: ./backend
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgis://bird_admin:super_secret_password@db:5432/birdpoint_db
+      - DJANGO_SECRET_KEY=dev_secret_key_123_nie_do_produkcji
+      - DEBUG=True
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:

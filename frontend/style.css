@@ -1,0 +1,111 @@
+body {
+  margin: 0;
+  padding: 60px 20px 0 100px;
+  background-color: #C1C7C7;
+  display: flex;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100vw;
+  height: 100vh;
+}
+
+/* Kontener, który nadaje mapie kształt z Figmy */
+.app-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.map-container{
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: calc(100vw - 120px);
+  height: calc(100vh - 60px);
+  
+  border-radius: 24px 24px 0 0;
+  overflow: hidden;
+  background-color: #ffffff;
+  
+  box-shadow: 0px 20px 50px rgba(0, 0, 0, 0.3);
+}
+
+.icon-panel {
+  position: fixed;
+  top: 60px;
+  left: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.icon-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: #f1f3f5;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  position: relative;
+  z-index: 100;
+  border: none;
+  background: none;
+}
+
+.icon-circle img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.icon-circle:hover {
+  background-color: #e0e6e8;
+}
+
+.sidebar {
+  position: fixed;
+  top: 60px;
+  left: 100px;
+  width: 320px;
+  max-width: calc(100vw - 120px);
+  height: calc(100vh - 60px);
+  padding: 24px;
+  background-color: rgba(255, 255, 255, 0.98);
+  border-radius: 24px 24px 24px 24px;
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.14);
+  transform: translateX(-100%);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.sidebar-open {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.sidebar-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sidebar h2 {
+  margin-top: 0;
+}
