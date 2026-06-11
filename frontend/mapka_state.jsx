@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { FakeKarmniki, FakeUzytkownicy, BazaWiedzyLinki } from './mockup_data'
-import { getProfile, logout as apiLogout, isAuthenticated, addFeeder, searchUsers, updateFeeder, deleteFeeder } from './api'
+import { getProfile, logout as apiLogout, isAuthenticated, addFeeder, searchUsers, updateFeeder, deleteFeeder, deleteImage, getFeederImages, getFeederDetails } from './api'
 
 export function useMapkaState() {
   const [activeSidebar, setActiveSidebar] = useState(null)
@@ -54,8 +54,8 @@ export function useMapkaState() {
             adres: feature.properties.description, 
             author: feature.properties.owner_username || 'Anonim',
             image: image, 
-            galleryImages: [],
-            videoLink: null,
+            galleryImages: images,
+            videoLink: feature.properties.video_link || null,
             userId: feature.properties.owner_id || null
           };
         }).filter(f => f !== null);
@@ -137,8 +137,8 @@ export function useMapkaState() {
           adres: feature.properties.description, 
           author: feature.properties.owner_username || 'Anonim',
           image: image, 
-          galleryImages: [],
-          videoLink: null,
+          galleryImages: images,
+          videoLink: feature.properties.video_link || null,
           userId: feature.properties.owner_id || null
         };
         console.log('Mapped feeder:', feeder);
@@ -275,7 +275,8 @@ export function useMapkaState() {
       lat, 
       lng,
       'WITHOUT_CARE',
-      imageFiles
+      imageFiles,
+      formData.atrybut3 || ''
     )
       .then(async (created) => {
         console.log('Feeder created successfully:', created);
@@ -294,20 +295,56 @@ export function useMapkaState() {
   const openEditFeeder = (feeder) => {
     // Check permissions
     if (currentUser && currentUser.id === feeder.userId) {
-      setEditingFeeder(feeder);
-      setActiveSidebar('edit');
-      // Enable geometry selection mode automatically
-      setOnLocationSelectedAction(() => (lat, lng) => {
-        setEditingFeeder(prev => ({
-          ...prev,
-          lat,
-          lng
-        }))
-      })
+      // Pobierz obrazy dla feedera
+      getFeederImages(feeder.id)
+        .then(images => {
+          setEditingFeeder({
+            ...feeder,
+            allImages: Array.isArray(images) ? images : images.results || []
+          });
+          setActiveSidebar('edit');
+          // Enable geometry selection mode automatically
+          setOnLocationSelectedAction(() => (lat, lng) => {
+            setEditingFeeder(prev => ({
+              ...prev,
+              lat,
+              lng
+            }))
+          })
+        })
+        .catch(err => {
+          console.error('Błąd przy pobieraniu obrazów:', err);
+          // Mimo błędu, otwórz edycję
+          setEditingFeeder(feeder);
+          setActiveSidebar('edit');
+          setOnLocationSelectedAction(() => (lat, lng) => {
+            setEditingFeeder(prev => ({
+              ...prev,
+              lat,
+              lng
+            }))
+          })
+        });
     } else {
       setNotification('Brak uprawnień do edycji tego obiektu');
       setTimeout(() => setNotification(null), 3000);
     }
+  }
+
+  const handleDeleteImage = (imageId) => {
+    deleteImage(imageId)
+      .then(async () => {
+        console.log('Image deleted successfully');
+        // Pobierz znowu obrazy
+        const images = await getFeederImages(editingFeeder.id);
+        setEditingFeeder(prev => ({
+          ...prev,
+          allImages: Array.isArray(images) ? images : images.results || []
+        }));
+      })
+      .catch((err) => {
+        console.error('Błąd przy usuwaniu obrazu:', err);
+      });
   }
 
   const readEditFeeder = (formData, lat, lng) => {
@@ -322,7 +359,8 @@ export function useMapkaState() {
       lat,
       lng,
       'WITHOUT_CARE',
-      imageFiles
+      imageFiles,
+      formData.link || ''
     )
       .then(async () => {
         console.log('Feeder updated successfully');
@@ -386,6 +424,7 @@ export function useMapkaState() {
     readNewFeeder,
     readEditFeeder,
     readDeleteFeeder,
+    handleDeleteImage,
     setSelectedUser,
     setOnLocationSelectedAction,
     handleAvatarUpdated,

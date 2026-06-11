@@ -130,7 +130,7 @@ export const searchUsers = async (q = '') => {
 };
 
 // Dodawanie karmnika (GeoJSON Feature z opcjonalnymi obrazami)
-export const addFeeder = async (name, description, lat, lng, status = 'WITHOUT_CARE', imageFiles = null) => {
+export const addFeeder = async (name, description, lat, lng, status = 'WITHOUT_CARE', imageFiles = null, videoLink = '') => {
   try {
     // If there are images, use multipart/form-data
     if (imageFiles && imageFiles.length > 0) {
@@ -147,6 +147,7 @@ export const addFeeder = async (name, description, lat, lng, status = 'WITHOUT_C
           name,
           description,
           status,
+          video_link: videoLink,
         },
       };
       
@@ -182,6 +183,7 @@ export const addFeeder = async (name, description, lat, lng, status = 'WITHOUT_C
           name,
           description,
           status,
+          video_link: videoLink,
         },
       };
 
@@ -204,7 +206,7 @@ export const addFeeder = async (name, description, lat, lng, status = 'WITHOUT_C
 };
 
 // Aktualizacja karmnika
-export const updateFeeder = async (id, name, description, lat, lng, status = 'WITHOUT_CARE', imageFiles = null) => {
+export const updateFeeder = async (id, name, description, lat, lng, status = 'WITHOUT_CARE', imageFiles = null, videoLink = '') => {
   try {
     if (imageFiles && imageFiles.length > 0) {
       const formData = new FormData();
@@ -219,6 +221,7 @@ export const updateFeeder = async (id, name, description, lat, lng, status = 'WI
           name,
           description,
           status,
+          video_link: videoLink,
         },
       };
       
@@ -252,6 +255,7 @@ export const updateFeeder = async (id, name, description, lat, lng, status = 'WI
           name,
           description,
           status,
+          video_link: videoLink,
         },
       };
 
@@ -284,6 +288,47 @@ export const deleteFeeder = async (id) => {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(JSON.stringify(err) || 'Błąd przy usuwaniu karmnika');
+    }
+
+    return true;
+  } catch (err) {
+    throw err;
+  }
+};
+
+// Pobieranie pełnych danych feedera
+export const getFeederDetails = async (feederId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/map/api/objects/${feederId}/`);
+    if (!response.ok) throw new Error('Nie udało się pobrać danych feedera');
+    return await response.json();
+  } catch (err) {
+    throw err;
+  }
+};
+
+// Pobieranie obrazów dla konkretnego obiektu
+export const getFeederImages = async (feederId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/map/api/images/?map_object=${feederId}`);
+    if (!response.ok) throw new Error('Nie udało się pobrać obrazów');
+    return await response.json();
+  } catch (err) {
+    throw err;
+  }
+};
+
+// Usuwanie konkretnego obrazu
+export const deleteImage = async (imageId) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/map/api/images/${imageId}/`, {
+      method: 'DELETE',
+      headers: getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(JSON.stringify(err) || 'Błąd przy usuwaniu obrazu');
     }
 
     return true;

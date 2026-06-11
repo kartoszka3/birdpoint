@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from django.views.static import serve
 from django.conf import settings
 from .models import MapObject, MapObjectImage
-from .serializers import MapObjectSerializer
+from .serializers import MapObjectSerializer, MapObjectImageSerializer
 from .permissions import IsOwnerOrReadOnly
 import json
 import logging
@@ -31,18 +31,25 @@ class MapObjectViewSet(viewsets.ModelViewSet):
             # Parse feature from form data
             try:
                 feature = json.loads(request.data.get('feature'))
+                logger.warning(f"Create - parsed feature: {feature}")
+                # Rozpakuj properties i połącz z geometry (mapując na location)
+                properties = feature.get('properties', {})
+                request_data = {
+                    **properties,  # Rozpakuj wszystkie properties (name, description, status, video_link, etc.)
+                    'location': feature.get('geometry')  # Mapuj geometry na location dla serializer
+                }
+                logger.warning(f"Create - request_data keys: {request_data.keys()}, video_link: {request_data.get('video_link')}")
             except (json.JSONDecodeError, TypeError):
                 return Response(
                     {'error': 'Invalid feature JSON'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            
-            # Create GeoJSON-like request data for serializer
-            request_data = feature
         else:
             # Standard JSON request
             request_data = request.data
+            logger.warning(f"Create - request_data keys: {request_data.keys()}")
         
+        logger.warning(f"Create - serializer will receive: {request_data}")
         serializer = self.get_serializer(data=request_data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
@@ -77,7 +84,14 @@ class MapObjectViewSet(viewsets.ModelViewSet):
         if 'feature' in request.data:
             try:
                 feature = json.loads(request.data.get('feature'))
-                request_data = feature
+                logger.warning(f"Update - parsed feature: {feature}")
+                # Rozpakuj properties i połącz z geometry (mapując na location)
+                properties = feature.get('properties', {})
+                request_data = {
+                    **properties,  # Rozpakuj wszystkie properties
+                    'location': feature.get('geometry')  # Mapuj geometry na location
+                }
+                logger.warning(f"Update - request_data keys: {request_data.keys()}, video_link: {request_data.get('video_link')}")
             except (json.JSONDecodeError, TypeError):
                 return Response(
                     {'error': 'Invalid feature JSON'},
@@ -85,6 +99,7 @@ class MapObjectViewSet(viewsets.ModelViewSet):
                 )
         else:
             request_data = request.data
+            logger.warning(f"Update - standard JSON, video_link: {request_data.get('video_link')}")
         
         serializer = self.get_serializer(instance, data=request_data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -111,6 +126,43 @@ class MapObjectViewSet(viewsets.ModelViewSet):
         logger.warning(f"MapObject list response type: {type(response.data)}, keys: {list(response.data.keys()) if isinstance(response.data, dict) else 'N/A'}")
         logger.warning(f"MapObject list response data (first 500 chars): {str(response.data)[:500]}")
         return response
+
+
+class MapObjectImageViewSet(viewsets.ModelViewSet):
+    queryset = MapObjectImage.objects.all()
+    serializer_class = MapObjectImageSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsOwnerOrReadOnly]
+
+    def get_queryset(self):
+        # Filtruj po map_object jeśli parametr jest podany
+        queryset = MapObjectImage.objects.all()
+        map_object_id = self.request.query_params.get('map_object', None)
+        if map_object_id is not None:
+            queryset = queryset.filter(map_object_id=map_object_id)
+        return queryset
+
+    def get_permissions(self):
+        """
+        Uprawnienia: odczyt dla wszystkich, zapis/usuwanie tylko dla właściciela obiektu
+        """
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [IsOwnerOrReadOnly()]
+
+    def check_object_permissions(self, request, obj):
+        """
+        Sprawdź czy użytkownik jest właścicielem MapObject powiązanego z obrazem
+        """
+        # Dla metod safe (GET) zezwalamy wszystkim
+        if request.method in permissions.SAFE_METHODS:
+            return
+        
+        # Dla DELETE, PUT, PATCH - sprawdź czy użytkownik jest właścicielem obiektu
+        if request.user and obj.map_object.owner == request.user:
+            return
+        
+        self.permission_denied(request)
+
 
 def map_view(request):
     return serve(request, 'index.html', document_root=settings.STATIC_ROOT)

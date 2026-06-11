@@ -11,6 +11,7 @@ class MapObject(models.Model):
     name = models.CharField(max_length=150, verbose_name="Nazwa obiektu")
     description = models.TextField(blank=True, null=True, verbose_name="Opis/Atrybuty dodatkowe")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='WITHOUT_CARE')
+    video_link = models.URLField(blank=True, null=True, verbose_name="Link do transmisji na żywo")
     
     # Geometria punktowa (WGS 84 - standardowy system GPS)
     location = models.PointField(srid=4326, verbose_name="Lokalizacja")

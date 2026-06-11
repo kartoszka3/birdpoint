@@ -53,6 +53,7 @@ export default function Mapka() {
     readNewFeeder,
     readEditFeeder,
     readDeleteFeeder,
+    handleDeleteImage,
     setSelectedUser,
     setOnLocationSelectedAction,
     handleAvatarUpdated,
@@ -146,6 +147,7 @@ export default function Mapka() {
                 pointRequest={(callback) => setOnLocationSelectedAction(() => callback)}
                 onSave={readEditFeeder}
                 onDelete={readDeleteFeeder}
+                onDeleteImage={handleDeleteImage}
                 onCancel={() => {
                   setActiveSidebar(null);
                   setOnLocationSelectedAction(null);
@@ -250,15 +252,15 @@ export default function Mapka() {
                         <button type="button" className="popup-icon-button" onClick={() => openGallery(k)}>
                           <img src="/assets/icons/galeria_dark.png" alt="Galeria" />
                         </button>
-                        {currentUser && currentUser.id === k.userId && (
-                          <button type="button" className="popup-icon-button" onClick={() => openEditFeeder(k)} title="Edytuj">
-                            ✎
-                          </button>
-                        )}
                         {k.videoLink && (
                           <a href={k.videoLink} target="_blank" rel="noreferrer" className="popup-icon-button">
                             <img src="/assets/icons/stream.png" alt="Video" />
                           </a>
+                        )}
+                        {currentUser && currentUser.id === k.userId && (
+                          <button type="button" className="popup-icon-button" onClick={() => openEditFeeder(k)} title="Edytuj">
+                            ✎
+                          </button>
                         )}
                       </div>
                       
