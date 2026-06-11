@@ -1,5 +1,5 @@
 import React from 'react'
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON, Circle, CircleMarker } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
 import MapClickHandler from './roznosci'
 
@@ -11,7 +11,7 @@ import { SidebarWyszukajUzytkownika, SidebarProfil } from './sidebars/uzytkownic
 import { SidebarAuth } from './sidebars/logowanie'
 
 import { iconSrcs, markerIcon } from './content'
-import { useMapkaState } from './mapka_state'
+import { useMapkaState } from './mapka_state' // Upewnij się, że ścieżka do hooka jest poprawna
 
 ////////////////////////
 //SILNIK MAPY///////////
@@ -58,13 +58,25 @@ export default function Mapka() {
     setOnLocationSelectedAction,
     handleAvatarUpdated,
     BazaWiedzyLinki,
+      
+    // Dane algorytmu ze stanu aplikacji
+    recommendationData,
+    setRecommendationData,
+    recommendationCoords,
+    setRecommendationCoords,
+    bufferSize,
+    setBufferSize         // Promień wpisany przez użytkownika (w metrach)
   } = useMapkaState()
+
+  // Konwersja promienia na liczbę (jeśli puste lub niepoprawne, domyślnie dajemy np. 100m)
+  const currentRadius = bufferSize ? parseInt(bufferSize, 10) : 100;
+  console.log("LOG 3 [Mapka.jsx]: Aktualny stan renderowania okręgu -> Coords:", recommendationCoords, "Radius:", currentRadius);
 
   return (
     <div className="app-shell">
 
     <div className="icon-panel">
-      
+        
       {iconSrcs.map((src, index) => (
         <button
           key={index}
@@ -77,6 +89,13 @@ export default function Mapka() {
               setOnLocationSelectedAction(null)
               return
             }
+
+            // CZYSZCZENIE WARSTW: Jeśli kliknięto ikonę inną niż silnik rekomendacji (indeks 2)
+            if (index !== 2) {
+              setRecommendationData(null);
+              setRecommendationCoords(null);
+            }
+
             setActiveSidebar(index)
             setSelectedUser(null)
             setOnLocationSelectedAction(null)
@@ -97,13 +116,17 @@ export default function Mapka() {
           }
           setSelectedUser(null);
           setOnLocationSelectedAction(null);
+
+          // CZYSZCZENIE WARSTW przy przejściu do profilu/logowania
+          setRecommendationData(null);
+          setRecommendationCoords(null);
         }}
       >
         <img src={currentUser?.avatar || defaultProfileIcon} alt="Profil" />
       </button>
-      
+        
     </div>
-     
+      
       {!currentUser && (
         <div className="top-right-controls">
           <button type="button" onClick={() => openAuthSidebar('login')}>Zaloguj</button>
@@ -116,6 +139,10 @@ export default function Mapka() {
           setActiveSidebar(null);
           setSelectedUser(null);
           setOnLocationSelectedAction(null);
+
+          // CZYSZCZENIE WARSTW przy zamknięciu panelu bocznego krzyżykiem
+          setRecommendationData(null);
+          setRecommendationCoords(null);
         }}>
           ×
         </button>
@@ -132,7 +159,7 @@ export default function Mapka() {
               />
             )}
             {activeSidebar === 0 && <SidebarBazaWiedzy links={ BazaWiedzyLinki } />}
-            
+              
 
             {activeSidebar === 1 && currentUser && (
               <SidebarDodaj
@@ -164,16 +191,19 @@ export default function Mapka() {
                 onLogout={handleLogout}
               />
             )}
-            
+              
 
             {activeSidebar === 2 && (
               <SidebarSilnikRekomendacji 
-
                 pointRequest={(callback) => setOnLocationSelectedAction(() => callback)}
-                openOverlay={(type, data) => openOverlay(type, data)}
+                setRecommendationData={setRecommendationData}
+                recommendationCoords={recommendationCoords}
+                setRecommendationCoords={setRecommendationCoords}
+                bufferSize={bufferSize}
+                setBufferSize={setBufferSize}
               />
             )}
-            
+             
             {activeSidebar === 3 && (
               selectedUser ? (
                 <SidebarProfil 
@@ -227,6 +257,64 @@ export default function Mapka() {
             />
 
             <MapClickHandler onMapClick={handleMapClick} isSelectingMode={!!onLocationSelectedAction} />
+
+            {/* RYSOWANIE SAMEGO BUFORA WOKÓŁ KLIKNIĘTEGO PUNKTU */}
+            {recommendationCoords && 
+              Array.isArray(recommendationCoords) && 
+              recommendationCoords[0] && 
+              recommendationCoords[1] && (
+                <>
+                  {/* Wyraźny, ale bardzo estetyczny, delikatny okrąg analizy */}
+                  <Circle
+                    key={`buffer-${recommendationCoords[0]}-${recommendationCoords[1]}-${currentRadius}`}
+                    center={[recommendationCoords[0], recommendationCoords[1]]}
+                    radius={currentRadius > 0 ? currentRadius : 100}
+                    pathOptions={{
+                      color: '#2ecc71',      // Spójny, zielony kolor obrysu
+                      fillColor: '#2ecc71',
+                      fillOpacity: 0.05,     // Bardzo delikatne przezroczyste tło (5%)
+                      weight: 1.5,           // Cieniutka krawędź obrysu
+                      dashArray: '4, 4'      // Gęstsza przerywana linia
+                    }}
+                  />
+
+                  {/* Malutka pinezka w samym centrum kliknięcia */}
+                  <CircleMarker 
+                    center={recommendationCoords} 
+                    radius={2} 
+                    pathOptions={{ color: '#e74c3c', fillColor: '#e74c3c', fillOpacity: 1 }} 
+                  />
+                </>
+              )}
+
+            {/* RENDEROWANIE TYLKO PRZYDATNYCH (ZIELONYCH) POLIGONÓW */}
+            {recommendationData && (
+              <GeoJSON 
+                key={JSON.stringify(recommendationData)} 
+                data={recommendationData} 
+                filter={(feature) => {
+                  return feature.properties && feature.properties.score > 0.3;
+                }}
+                style={() => {
+                  return {
+                    fillColor: '#2ecc71',
+                    weight: 1,
+                    color: '#2ecc71',
+                    fillOpacity: 0.35
+                  };
+                }}
+                onEachFeature={(feature, layer) => {
+                  const props = feature.properties;
+                  layer.bindPopup(`
+                    <div style="font-family: sans-serif; font-size: 13px; line-height: 1.5; padding: 4px;">
+                      Odległość do zieleni: <strong>${props.green_distance_m} m</strong><br/>
+                      Odległość do dróg: <strong>${props.road_distance_m} m</strong><br/>
+                      Najbliższy karmnik: <strong>${props.feeder_distance_m} m</strong>
+                    </div>
+                  `);
+                }}
+              />
+            )}
 
             {feeders.map(k => (
               <Marker

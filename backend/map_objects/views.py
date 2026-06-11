@@ -2,9 +2,12 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from django.views.static import serve
 from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 from .models import MapObject, MapObjectImage
 from .serializers import MapObjectSerializer, MapObjectImageSerializer
 from .permissions import IsOwnerOrReadOnly
+from .recommendation_engine.engine import oblicz_rekomendacje
 import json
 import logging
 
@@ -166,3 +169,48 @@ class MapObjectImageViewSet(viewsets.ModelViewSet):
 
 def map_view(request):
     return serve(request, 'index.html', document_root=settings.STATIC_ROOT)
+
+
+def test_rekomendacji(request):
+    return JsonResponse({
+        "status": "ok", 
+        "message": "Silnik rekomendacji w Django i Dockerze melduje gotowość!"
+    })
+
+@csrf_exempt
+def recommend_view(request):
+    if request.method != 'POST':
+        return JsonResponse({"error": "Only POST requests allowed"}, status=405)
+        
+    try:
+        payload = json.loads(request.body)
+        lat = float(payload.get("lat", 52.2297))
+        lng = float(payload.get("lng", 21.0122))
+        buffer_m = int(payload.get("buffer_m", 100))
+        threshold = float(payload.get("threshold", 0.05)) # Próg odbieramy dynamicznie z frontu
+
+        if buffer_m <= 0:
+            return JsonResponse({"error": "Rozmiar bufora musi być większy od zera."}, status=400)
+
+        # 1. Pobieramy aktualne karmniki z bazy danych
+        existing_feeders = MapObject.objects.all()
+        
+        # 2. DOPASOWANIE DO GEODJANGO:
+        # f.location.y to szerokość (latitude), f.location.x to długość (longitude)
+        feeder_coords = []
+        for f in existing_feeders:
+            if f.location:
+                feeder_coords.append((float(f.location.y), float(f.location.x)))
+
+        # 3. Uruchamiamy wyizolowany moduł obliczeniowy
+        features, summary = oblicz_rekomendacje(lat, lng, buffer_m, threshold, feeder_coords)
+
+        # 4. Zwracamy czysty standard GeoJSON, identyczny jak ze starego Flaska
+        return JsonResponse({
+            "type": "FeatureCollection",
+            "features": features,
+            "summary": summary,
+        })
+
+    except Exception as exc:
+        return JsonResponse({"error": str(exc)}, status=500)

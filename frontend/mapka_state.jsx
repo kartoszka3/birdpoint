@@ -10,7 +10,9 @@ export function useMapkaState() {
   
   // ZMIANA 1: Pusta tablica zamiast FakeKarmniki i poprawna nazwa setFeeders
   const [feeders, setFeeders] = useState([]) 
-  
+  const [recommendationData, setRecommendationData] = useState(null)
+  const [recommendationCoords, setRecommendationCoords] = useState(null)
+  const [bufferSize, setBufferSize] = useState(100)
   const [galleryFeeder, setGalleryFeeder] = useState(null)
   const [galleryFullIndex, setGalleryFullIndex] = useState(null)
   const [onLocationSelectedAction, setOnLocationSelectedAction] = useState(null)
@@ -256,6 +258,8 @@ export function useMapkaState() {
   }
 
   const handleMapClick = (lat, lng) => {
+    console.log("LOG 1 [mapka_state]: handleMapClick wywołane z współrzędnymi:", lat, lng);
+    console.log("LOG 1 [mapka_state]: Czy istnieje akcja oczekująca (onLocationSelectedAction)?:", !!onLocationSelectedAction);
     if (onLocationSelectedAction) {
       onLocationSelectedAction(lat, lng)
       setOnLocationSelectedAction(null)
@@ -395,6 +399,12 @@ export function useMapkaState() {
     currentUser,
     authMode,
     feeders,
+    recommendationData,
+    setRecommendationData,
+    recommendationCoords,
+    setRecommendationCoords,
+    bufferSize,
+    setBufferSize,
     galleryFeeder,
     galleryFullIndex,
     onLocationSelectedAction,
