@@ -64,3 +64,14 @@ class MapObjectSerializer(GeoFeatureModelSerializer):
                 lng, lat = coords[0], coords[1]
                 validated_data['location'] = Point(lng, lat, srid=4326)
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Jeśli otrzymaliśmy geojson jako słownik w 'location', zamieniamy
+        # na obiekt GEOS Point zanim zaktualizujemy instancję modelu.
+        loc = validated_data.get('location')
+        if isinstance(loc, dict):
+            coords = loc.get('coordinates')
+            if coords and len(coords) >= 2:
+                lng, lat = coords[0], coords[1]
+                validated_data['location'] = Point(lng, lat, srid=4326)
+        return super().update(instance, validated_data)

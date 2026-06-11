@@ -202,3 +202,92 @@ export const addFeeder = async (name, description, lat, lng, status = 'WITHOUT_C
     throw err;
   }
 };
+
+// Aktualizacja karmnika
+export const updateFeeder = async (id, name, description, lat, lng, status = 'WITHOUT_CARE', imageFiles = null) => {
+  try {
+    if (imageFiles && imageFiles.length > 0) {
+      const formData = new FormData();
+      
+      const feature = {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [lng, lat],
+        },
+        properties: {
+          name,
+          description,
+          status,
+        },
+      };
+      
+      formData.append('feature', JSON.stringify(feature));
+      
+      imageFiles.forEach((file) => {
+        formData.append('images', file);
+      });
+      
+      const token = getToken();
+      const response = await fetch(`${API_BASE_URL}/map/api/objects/${id}/`, {
+        method: 'PUT',
+        headers: token ? { 'Authorization': `Token ${token}` } : {},
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(JSON.stringify(err) || 'Błąd przy aktualizacji karmnika');
+      }
+
+      return await response.json();
+    } else {
+      const feature = {
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [lng, lat],
+        },
+        properties: {
+          name,
+          description,
+          status,
+        },
+      };
+
+      const response = await fetch(`${API_BASE_URL}/map/api/objects/${id}/`, {
+        method: 'PUT',
+        headers: getHeaders(true),
+        body: JSON.stringify(feature),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(JSON.stringify(err) || 'Błąd przy aktualizacji karmnika');
+      }
+
+      return await response.json();
+    }
+  } catch (err) {
+    throw err;
+  }
+};
+
+// Usuwanie karmnika
+export const deleteFeeder = async (id) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/map/api/objects/${id}/`, {
+      method: 'DELETE',
+      headers: getHeaders(true),
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(JSON.stringify(err) || 'Błąd przy usuwaniu karmnika');
+    }
+
+    return true;
+  } catch (err) {
+    throw err;
+  }
+};

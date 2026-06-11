@@ -5,6 +5,7 @@ import MapClickHandler from './roznosci'
 
 import { SidebarBazaWiedzy } from './sidebars/bazawiedzy'
 import { SidebarDodaj } from './sidebars/dodajkarmnik'
+import { SidebarEdytuj } from './sidebars/edytujkarmnik'
 import { SidebarSilnikRekomendacji } from './sidebars/silnik'
 import { SidebarWyszukajUzytkownika, SidebarProfil } from './sidebars/uzytkownicy'
 import { SidebarAuth } from './sidebars/logowanie'
@@ -31,6 +32,8 @@ export default function Mapka() {
     overlayPane,
     mapRef,
     markerRefs,
+    editingFeeder,
+    notification,
     defaultProfileIcon,
     getUserById,
     openFeederOnMap,
@@ -42,11 +45,14 @@ export default function Mapka() {
     prevGalleryImage,
     nextGalleryImage,
     openAuthSidebar,
+    openEditFeeder,
     handleLogin,
     handleRegister,
     handleLogout,
     handleMapClick,
     readNewFeeder,
+    readEditFeeder,
+    readDeleteFeeder,
     setSelectedUser,
     setOnLocationSelectedAction,
     handleAvatarUpdated,
@@ -131,6 +137,19 @@ export default function Mapka() {
               <SidebarDodaj
                 pointRequest={(callback) => setOnLocationSelectedAction(() => callback)}
                 onSave={readNewFeeder}
+              />
+            )}
+            {activeSidebar === 'edit' && editingFeeder && (
+              <SidebarEdytuj
+                feeder={editingFeeder}
+                currentUser={currentUser}
+                pointRequest={(callback) => setOnLocationSelectedAction(() => callback)}
+                onSave={readEditFeeder}
+                onDelete={readDeleteFeeder}
+                onCancel={() => {
+                  setActiveSidebar(null);
+                  setOnLocationSelectedAction(null);
+                }}
               />
             )}
             {activeSidebar === 1 && !currentUser && (
@@ -231,6 +250,11 @@ export default function Mapka() {
                         <button type="button" className="popup-icon-button" onClick={() => openGallery(k)}>
                           <img src="/assets/icons/galeria_dark.png" alt="Galeria" />
                         </button>
+                        {currentUser && currentUser.id === k.userId && (
+                          <button type="button" className="popup-icon-button" onClick={() => openEditFeeder(k)} title="Edytuj">
+                            ✎
+                          </button>
+                        )}
                         {k.videoLink && (
                           <a href={k.videoLink} target="_blank" rel="noreferrer" className="popup-icon-button">
                             <img src="/assets/icons/stream.png" alt="Video" />
@@ -300,6 +324,12 @@ export default function Mapka() {
               <button type="button" className="gallery-close" onClick={closeOverlay}>×</button>
 
             </div>
+          </div>
+        )}
+
+        {notification && (
+          <div className="notification bottom-left">
+            {notification}
           </div>
         )}
       </div>

@@ -65,6 +65,47 @@ class MapObjectViewSet(viewsets.ModelViewSet):
         headers = self.get_success_headers(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
+    def update(self, request, *args, **kwargs):
+        """Handle update with optional image uploads"""
+        logger.warning(f"Update request - data keys: {request.data.keys()}")
+        logger.warning(f"Update request - files: {request.FILES.keys()}")
+        
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        
+        # Parse feature data
+        if 'feature' in request.data:
+            try:
+                feature = json.loads(request.data.get('feature'))
+                request_data = feature
+            except (json.JSONDecodeError, TypeError):
+                return Response(
+                    {'error': 'Invalid feature JSON'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            request_data = request.data
+        
+        serializer = self.get_serializer(instance, data=request_data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        # Handle image uploads if present (add new images, keep old ones)
+        image_files = request.FILES.getlist('images')
+        if image_files:
+            logger.warning(f"Image files received for update: {len(image_files)}")
+            for image_file in image_files:
+                logger.warning(f"Creating MapObjectImage for {image_file.name}")
+                MapObjectImage.objects.create(
+                    map_object=instance,
+                    image=image_file
+                )
+        
+        # Re-serialize with images after updating
+        serializer = self.get_serializer(instance)
+        
+        return Response(serializer.data)
+
     def list(self, request, *args, **kwargs):
         response = super().list(request, *args, **kwargs)
         logger.warning(f"MapObject list response type: {type(response.data)}, keys: {list(response.data.keys()) if isinstance(response.data, dict) else 'N/A'}")

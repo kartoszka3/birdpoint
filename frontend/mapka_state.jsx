@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { FakeKarmniki, FakeUzytkownicy, BazaWiedzyLinki } from './mockup_data'
-import { getProfile, logout as apiLogout, isAuthenticated, addFeeder, searchUsers } from './api'
+import { getProfile, logout as apiLogout, isAuthenticated, addFeeder, searchUsers, updateFeeder, deleteFeeder } from './api'
 
 export function useMapkaState() {
   const [activeSidebar, setActiveSidebar] = useState(null)
@@ -16,6 +16,8 @@ export function useMapkaState() {
   const [onLocationSelectedAction, setOnLocationSelectedAction] = useState(null)
   const [selectedUser, setSelectedUser] = useState(null)
   const [overlayPane, setOverlayPane] = useState(null)
+  const [editingFeeder, setEditingFeeder] = useState(null)
+  const [notification, setNotification] = useState(null)
   const mapRef = useRef(null)
   const markerRefs = useRef({})
 
@@ -289,6 +291,65 @@ export function useMapkaState() {
       });
   }
 
+  const openEditFeeder = (feeder) => {
+    // Check permissions
+    if (currentUser && currentUser.id === feeder.userId) {
+      setEditingFeeder(feeder);
+      setActiveSidebar('edit');
+      // Enable geometry selection mode automatically
+      setOnLocationSelectedAction(() => (lat, lng) => {
+        setEditingFeeder(prev => ({
+          ...prev,
+          lat,
+          lng
+        }))
+      })
+    } else {
+      setNotification('Brak uprawnień do edycji tego obiektu');
+      setTimeout(() => setNotification(null), 3000);
+    }
+  }
+
+  const readEditFeeder = (formData, lat, lng) => {
+    const imageFiles = formData.files && formData.files.length > 0 
+      ? Array.from(formData.files) 
+      : null;
+    
+    updateFeeder(
+      formData.id,
+      formData.nazwa || 'Karmnik',
+      formData.opis || '',
+      lat,
+      lng,
+      'WITHOUT_CARE',
+      imageFiles
+    )
+      .then(async () => {
+        console.log('Feeder updated successfully');
+        await refreshFeedersFromAPI();
+        setEditingFeeder(null);
+        setActiveSidebar(null);
+      })
+      .catch((err) => {
+        console.error('Błąd podczas aktualizacji karmnika:', err);
+        setActiveSidebar(null);
+      });
+  }
+
+  const readDeleteFeeder = (id) => {
+    deleteFeeder(id)
+      .then(async () => {
+        console.log('Feeder deleted successfully');
+        await refreshFeedersFromAPI();
+        setEditingFeeder(null);
+        setActiveSidebar(null);
+      })
+      .catch((err) => {
+        console.error('Błąd podczas usuwania karmnika:', err);
+        setActiveSidebar(null);
+      });
+  }
+
   return {
     activeSidebar,
     setActiveSidebar,
@@ -303,6 +364,8 @@ export function useMapkaState() {
     overlayPane,
     mapRef,
     markerRefs,
+    editingFeeder,
+    notification,
     defaultProfileIcon,
     getUserById,
     openFeederOnMap,
@@ -315,11 +378,14 @@ export function useMapkaState() {
     prevGalleryImage,
     nextGalleryImage,
     openAuthSidebar,
+    openEditFeeder,
     handleLogin,
     handleRegister,
     handleLogout,
     handleMapClick,
     readNewFeeder,
+    readEditFeeder,
+    readDeleteFeeder,
     setSelectedUser,
     setOnLocationSelectedAction,
     handleAvatarUpdated,
