@@ -25,14 +25,10 @@ export function SidebarDodaj({ pointRequest, onSave }) {
     const formData = new FormData(event.target);
     const files = event.target.elements.atrybut2?.files || [];
 
-    const galleryImages = files.length > 0 
-    ? Array.from(files).map((file) => URL.createObjectURL(file))
-    : null;
-
     onSave({
       nazwa: formData.get('nazwa'),
       atrybut1: formData.get('atrybut1'),
-      atrybut2: galleryImages,
+      atrybut2: files,  // Send actual File objects, not blob URLs
       atrybut3: formData.get('atrybut3'),
     }, localCoords[0], localCoords[1]); 
 

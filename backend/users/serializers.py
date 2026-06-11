@@ -4,9 +4,17 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+    avatar = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'join_date')
+        fields = ('id', 'username', 'email', 'join_date', 'avatar')
+
+    def get_avatar(self, obj):
+        request = self.context.get('request')
+        if not obj.avatar:
+            return None
+        return request.build_absolute_uri(obj.avatar.url) if request else obj.avatar.url
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True)

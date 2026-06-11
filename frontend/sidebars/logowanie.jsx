@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { loginUser, registerUser } from '../api';
 
 /////////////////////////////
 ///LOGOWANIE I REJESTRACJA///
@@ -8,15 +9,18 @@ import React, { useState, useEffect } from 'react';
 export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin, onRegister, onLogout }) {
   const [authStep, setAuthStep] = useState(mode);
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const isLoggedIn = !!currentUser;
 
   useEffect(() => {
     setAuthStep(mode);
     setUsername('');
+    setEmail('');
     setPassword('');
     setConfirmPassword('');
     setError('');
@@ -28,18 +32,33 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
     setError('');
   }, [authStep]);
 
-  const handleLoginSubmit = (event) => {
+  const handleLoginSubmit = async (event) => {
     event.preventDefault();
-    const user = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase());
-    if (!user || user.password !== password) {
-      setError('Nieprawidłowa nazwa użytkownika lub hasło.');
-      return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const data = await loginUser(username, password);
+      const userData = {
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email,
+        join_date: data.user.join_date,
+        avatar: data.user.avatar || '/assets/pics/profile_pics/profilowe_default.png',
+      };
+      onLogin(userData);
+    } catch (err) {
+      setError(err.message || 'Logowanie nieudane');
+    } finally {
+      setLoading(false);
     }
-    onLogin(user);
   };
 
-  const handleRegisterSubmit = (event) => {
+  const handleRegisterSubmit = async (event) => {
     event.preventDefault();
+    setError('');
+
+    // Walidacja po stronie klienta
     const trimmedName = username.trim();
     if (!trimmedName) {
       setError('Podaj nazwę użytkownika.');
@@ -50,14 +69,33 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
       return;
     }
     if (password !== confirmPassword) {
-      setError('Hasło musi być takie same.');
+      setError('Hasło musi być takie samo.');
       return;
     }
-    if (users.some(u => u.username.toLowerCase() === trimmedName.toLowerCase())) {
-      setError('Taka nazwa użytkownika już istnieje.');
-      return;
+
+    setLoading(true);
+
+    try {
+      const data = await registerUser(trimmedName, email, password);
+      const userData = {
+        id: data.user.id,
+        username: data.user.username,
+        email: data.user.email,
+        join_date: data.user.join_date,
+        avatar: data.user.avatar || '/assets/pics/profile_pics/profilowe_default.png',
+      };
+      onRegister(userData);
+    } catch (err) {
+      try {
+        const errorData = JSON.parse(err.message);
+        const errorMessages = Object.values(errorData).flat();
+        setError(errorMessages[0] || 'Rejestracja nieudana');
+      } catch {
+        setError(err.message || 'Rejestracja nieudana');
+      }
+    } finally {
+      setLoading(false);
     }
-    onRegister({ username: trimmedName, password });
   };
 
   return (
@@ -100,6 +138,7 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Twoja nazwa"
                   required
+                  disabled={loading}
                 />
               </label>
               <label>
@@ -110,11 +149,12 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Twoje hasło"
                   required
+                  disabled={loading}
                 />
               </label>
               {error && <p className="auth-error">{error}</p>}
-              <button type="submit" className="btn-submit">
-                Zaloguj się
+              <button type="submit" className="btn-submit" disabled={loading}>
+                {loading ? 'Logowanie...' : 'Zaloguj się'}
               </button>
             </form>
           ) : (
@@ -127,6 +167,17 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Wybierz nazwę"
                   required
+                  disabled={loading}
+                />
+              </label>
+              <label>
+                Email (opcjonalnie)
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Twój email"
+                  disabled={loading}
                 />
               </label>
               <label>
@@ -137,6 +188,7 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Hasło"
                   required
+                  disabled={loading}
                 />
               </label>
               <label>
@@ -147,11 +199,12 @@ export function SidebarAuth({ users = [], currentUser, mode = 'choice', onLogin,
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Powtórz hasło"
                   required
+                  disabled={loading}
                 />
               </label>
               {error && <p className="auth-error">{error}</p>}
-              <button type="submit" className="btn-submit">
-                Zarejestruj się
+              <button type="submit" className="btn-submit" disabled={loading}>
+                {loading ? 'Rejestracja...' : 'Zarejestruj się'}
               </button>
             </form>
           )}

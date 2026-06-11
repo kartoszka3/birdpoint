@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { searchUsers } from '../api';
 
 //////////////////////////////
 //WYSZUKIEWANIE UŻYTKOWNIKÓW//
@@ -6,8 +7,36 @@ import React, { useState, useEffect } from 'react';
 
 export function SidebarWyszukajUzytkownika({ users = [], currentUser, onUserSelect }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [results, setResults] = useState(users || []);
+  const [loading, setLoading] = useState(false);
 
-  const filteredUsers = users.filter(user => 
+  useEffect(() => {
+    let mounted = true;
+    const doSearch = async () => {
+      setLoading(true);
+      try {
+        const res = await searchUsers(searchQuery);
+        if (!mounted) return;
+        setResults(res || []);
+      } catch (err) {
+        console.error('Błąd wyszukiwania użytkowników', err);
+        if (mounted) setResults([]);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    // Jeśli puste zapytanie, pokaż początkową listę
+    if (!searchQuery) {
+      setResults(users || []);
+    } else {
+      doSearch();
+    }
+
+    return () => { mounted = false };
+  }, [searchQuery]);
+
+  const filteredUsers = results.filter(user => 
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -52,9 +81,32 @@ export function SidebarWyszukajUzytkownika({ users = [], currentUser, onUserSele
 //PROFIL UŻYTKOWNIKA//////////
 //////////////////////////////
 
-export function SidebarProfil({ user, currentUser, feeders = [], onSelectFeeder, onBack, onLogout }) {
+export function SidebarProfil({ user, currentUser, feeders = [], onSelectFeeder, onBack, onLogout, onAvatarUpdated }) {
   const isCurrentUser = !!currentUser && user.id === currentUser.id;
   const userFeeders = feeders.filter((feeder) => feeder.userId === user.id);
+  const [uploading, setUploading] = React.useState(false);
+  const fileRef = React.useRef(null);
+
+  const handleAvatarClick = () => {
+    if (isCurrentUser && fileRef.current) {
+      fileRef.current.click();
+    }
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const { uploadAvatar } = await import('../api');
+      const updated = await uploadAvatar(file);
+      if (onAvatarUpdated) onAvatarUpdated(updated);
+    } catch (err) {
+      console.error('Upload avatar failed', err);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <div className="sidebar-pane user-profile">
@@ -69,11 +121,17 @@ export function SidebarProfil({ user, currentUser, feeders = [], onSelectFeeder,
       )}
 
       <div className="profile-container">
-        <img 
-          src={user.avatar} 
-          alt={user.username}
-          className="profile-avatar"
-        />
+        <div className="profile-avatar-wrapper" onClick={handleAvatarClick} style={{cursor: isCurrentUser ? 'pointer' : 'default'}}>
+          <img 
+            src={user.avatar || '/assets/pics/profile_pics/profilowe_default.png'} 
+            alt={user.username}
+            className="profile-avatar"
+          />
+          {isCurrentUser && (
+            <input ref={fileRef} type="file" accept="image/*" style={{display:'none'}} onChange={handleFileChange} />
+          )}
+          {uploading && <div className="uploading-indicator">Uploading...</div>}
+        </div>
         <h2>
           {user.username} {isCurrentUser && '(Ty)'}
         </h2>

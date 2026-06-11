@@ -49,6 +49,7 @@ export default function Mapka() {
     readNewFeeder,
     setSelectedUser,
     setOnLocationSelectedAction,
+    handleAvatarUpdated,
     BazaWiedzyLinki,
   } = useMapkaState()
 
@@ -171,13 +172,14 @@ export default function Mapka() {
             )}
 
             {activeSidebar === 4 && currentUser && (
-              <SidebarProfil 
-                user={currentUser}
-                currentUser={currentUser}
-                feeders={feeders}
-                onSelectFeeder={openFeederOnMap}
-                onLogout={handleLogout}
-              />
+                <SidebarProfil 
+                  user={currentUser}
+                  currentUser={currentUser}
+                  feeders={feeders}
+                  onSelectFeeder={openFeederOnMap}
+                  onLogout={handleLogout}
+                  onAvatarUpdated={handleAvatarUpdated}
+                />
             )}
             {activeSidebar === 4 && !currentUser && (
               <SidebarAuth

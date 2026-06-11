@@ -21,3 +21,11 @@ class MapObject(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.get_status_display()})"
+
+
+class MapObjectImage(models.Model):
+    map_object = models.ForeignKey(MapObject, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='feeders/')
+
+    def __str__(self):
+        return f"Image for {self.map_object_id}"
